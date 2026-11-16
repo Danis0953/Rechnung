@@ -1,0 +1,8 @@
+services:
+  rechnung:
+    image: ghcr.io/danis0953/rechnung:latest
+    # alternativ lokal bauen:  build: .
+    container_name: taz-rechnung
+    restart: unless-stopped
+    ports:
+      - "8080:80"
