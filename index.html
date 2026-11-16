@@ -24,6 +24,7 @@ summary{padding:12px;font-weight:bold;cursor:pointer;background:#000;color:#fff;
 summary::-webkit-details-marker{display:none}
 .box{padding:12px}
 label{display:block;font-size:13px;font-weight:bold;margin:10px 0 3px}
+input[readonly],select:disabled{background:#eee;color:#000;border-style:dashed}
 input,select,textarea{width:100%;font:inherit;padding:10px;border:1.5px solid #000;border-radius:0;background:#fff;color:#000;-webkit-appearance:none;appearance:none;min-height:44px}
 select{background-image:linear-gradient(45deg,transparent 50%,#000 50%),linear-gradient(135deg,#000 50%,transparent 50%);background-position:calc(100% - 18px) 55%,calc(100% - 12px) 55%;background-size:6px 6px;background-repeat:no-repeat;padding-right:32px}
 input:focus,select:focus{outline:3px solid #000;outline-offset:1px}
@@ -84,12 +85,13 @@ input:focus,select:focus{outline:3px solid #000;outline-offset:1px}
  <label>Unterschrift (wird gespeichert)</label>
  <canvas id="sig"></canvas>
  <div class="sigbar"><span>Mit Finger oder Maus unterschreiben</span><button type="button" id="sigclear">Löschen</button></div>
- <div class="btns" style="grid-template-columns:1fr"><button class="btn" type="button" id="savesetup">Meine Daten speichern</button></div>
+ <div class="btns" style="grid-template-columns:1fr"><button class="btn" type="button" id="savesetup">Meine Daten speichern</button><button class="btn alt" type="button" id="editsetup" style="display:none">✎ Daten korrigieren</button></div>
 </div>
 </details>
 
 <h2>② Rechnung</h2>
 <div class="addr" id="prevaddr"></div>
+<button class="btn alt" type="button" id="editaddr" style="margin-bottom:12px">✎ Meine Daten / Adresse korrigieren</button>
 <div class="g2">
  <div><label for="rdat">Rechnungsdatum</label><input type="date" id="rdat"></div>
  <div><label for="ldat">Leistungsdatum / -zeitraum</label><input id="ldat" placeholder="wird aus den Zeilen übernommen"><div class="hint">Automatisch aus den Daten unten (von – bis), änderbar. Leer = automatisch.</div></div>
@@ -548,7 +550,16 @@ function updateAddr(){$('prevaddr').textContent=addrLines(readSetup()).join('\n'
 var saved=lsGet('taz_setup');
 if(saved){SETUP_IDS.forEach(function(i){if(saved[i]!=null)$(i).value=saved[i]});if(saved.name)$('setup').open=false}
 SETUP_IDS.forEach(function(i){$(i).addEventListener('input',function(){updateAddr();lsSet('taz_setup',readSetup())})});
-$('savesetup').onclick=function(){lsSet('taz_setup',readSetup());lsSet('taz_sig',sigHas?sig.toDataURL('image/png'):null);updateAddr();$('setup').open=false;showMsg('Deine Daten sind gespeichert.')};
+var locked=false;
+function setLock(b){
+  locked=b;
+  SETUP_IDS.forEach(function(i){var e=$(i);if(e.tagName==='SELECT')e.disabled=b;else e.readOnly=b});
+  $('savesetup').style.display=b?'none':'block';$('editsetup').style.display=b?'block':'none';
+  $('sigclear').disabled=b;sig.style.pointerEvents=b?'none':'auto';sig.style.opacity=b?.75:1;
+}
+function unlock(){setLock(false);$('setup').open=true;setTimeout(function(){sizeSig(true);$('setup').scrollIntoView({behavior:'smooth'})},50);showMsg('Du kannst deine Daten jetzt ändern. Danach „Meine Daten speichern“ drücken.')}
+$('savesetup').onclick=function(){lsSet('taz_setup',readSetup());lsSet('taz_sig',sigHas?sig.toDataURL('image/png'):null);updateAddr();setLock(true);$('setup').open=false;showMsg('Deine Daten sind gespeichert. Zum Ändern: „Daten korrigieren“.')};
+$('editsetup').onclick=unlock;$('editaddr').onclick=unlock;
 
 /* ---------- Unterschrift ---------- */
 var sig=$('sig'),ctx,sigHas=false,drawing=false;
@@ -568,7 +579,7 @@ sig.addEventListener('pointerup',endDraw);sig.addEventListener('pointercancel',e
 $('sigclear').onclick=function(){var r=sig.getBoundingClientRect();ctx.clearRect(0,0,r.width,r.height);sigHas=false;lsSet('taz_sig',null)};
 function loadSig(){var d=lsGet('taz_sig');if(!d)return;var im=new Image();im.onload=function(){var r=sig.getBoundingClientRect();ctx.drawImage(im,0,0,r.width,r.height);sigHas=true};im.src=d}
 $('setup').addEventListener('toggle',function(){if($('setup').open){setTimeout(function(){sizeSig(true)},0)}});
-sizeSig();loadSig();
+sizeSig();loadSig();if(saved&&saved.name)setLock(true);
 window.addEventListener('resize',function(){if(!drawing)sizeSig(true)});
 
 /* ---------- Zeilen ---------- */
